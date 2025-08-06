@@ -14,7 +14,7 @@ app.use(errorHandler);
 
 // Example route
 app.get('/', (req, res) => {
-  res.send('Hello from backend!');
+  res.send(`Welcome to the ${process.env.NODE_ENV} backend of the Kooulu`);
 });
 
 const userRoutes = require('./routes/userRoutes');
