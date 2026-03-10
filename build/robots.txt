@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /blogs/
+Allow: /video/
+
+# Block search results from being indexed
+Disallow: /search
+Disallow: /admin
+Disallow: /login
+
+Sitemap: http://localhost:3001/sitemap.xml
