@@ -29,7 +29,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 
 app.use(
   cors({
-    origin: "http://localhost:3001",
+    origin: [
+      "http://localhost:3001",
+      "https://hilarious-travesseiro-4a5013.netlify.app"
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -96,7 +99,7 @@ app.get('/sitemap.xml', async (req, res) => {
 
   try {
     const smStream = new SitemapStream({ 
-      hostname: 'http://localhost:3001/' // Replace with your LIVE domain later
+      hostname: 'https://hilarious-travesseiro-4a5013.netlify.app/' // Replace with your LIVE domain later
     });
     const pipeline = smStream.pipe(createGzip());
 
@@ -863,7 +866,7 @@ app.get("/api/blogs_listing", async (req, res) => {
         ? blog.blog_content1_text.substring(0, 150) + "..."
         : "",
       image: blog.thumbnail_image
-        ? `http://localhost:3000/${blog.thumbnail_image}`
+        ? `https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`
         : null,
       date: new Date(blog.created_at).toLocaleDateString("en-US", {
         year: "numeric",
@@ -941,19 +944,19 @@ app.get("/api/blogs/:slug", async (req, res) => {
     res.json({
       ...blog,
       image1: blog.image1
-        ? `http://localhost:3000/${blog.image1}`
+        ? `https://euphoria-backend-oii0.onrender.com/${blog.image1}`
         : null,
       image2: blog.image2
-        ? `http://localhost:3000/${blog.image2}`
+        ? `https://euphoria-backend-oii0.onrender.com/${blog.image2}`
         : null,
       image3: blog.image3
-        ? `http://localhost:3000/${blog.image3}`
+        ? `https://euphoria-backend-oii0.onrender.com/${blog.image3}`
         : null,
       banner_image: blog.banner_image
-          ? `http://localhost:3000/${blog.banner_image}`
+          ? `https://euphoria-backend-oii0.onrender.com/${blog.banner_image}`
           : null,
        thumbnail_image: blog.thumbnail_image
-            ? `http://localhost:3000/${blog.thumbnail_image}`
+            ? `https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`
             : null
     });
 
@@ -1053,6 +1056,6 @@ app.get(/.*/, (req, res) => {
 });
 
 // ========== Start Server ==========
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(3000, "0.0.0.0", () => {
+  console.log("🚀 Server running on https://euphoria-backend-oii0.onrender.com");
 });

@@ -8,4 +8,4 @@ Disallow: /search
 Disallow: /admin
 Disallow: /login
 
-Sitemap: http://localhost:3001/sitemap.xml
+Sitemap: https://euphoria-backend-oii0.onrender.com/sitemap.xml
