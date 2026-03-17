@@ -1042,7 +1042,9 @@ app.put(
   }
 );
 
-
+app.get("/ping", (req, res) => {
+  res.send("Server is awake and this api calls the server every 5 minutes");
+});
 
 // search feature for blogs:
 
