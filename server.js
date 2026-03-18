@@ -167,17 +167,34 @@ app.post(
     { name: "image3", maxCount: 1 },
   ]),
   async (req, res) => {
+    console.log("FINAL VALUES:", values);
     try {
       const data = req.body;
-      const files = req.files;
+      const files = req.files || {};
 
+      // ✅ 1. Normalize blog_content (handles FormData arrays)
+      for (let i = 1; i <= 5; i++) {
+        const key = `blog_content${i}`;
+        if (Array.isArray(data[key])) {
+          data[key] = data[key].join("");
+        }
+      }
+
+      // ✅ 2. Safe HTML strip function
       const stripHtml = (html) => {
-        if (!html || typeof html !== 'string') return "";
+        if (!html) return "";
+
+        if (Array.isArray(html)) {
+          html = html.join("");
+        }
+
+        if (typeof html !== "string") return "";
+
         const temp = html.replace(/&nbsp;/g, " ");
         return temp.replace(/<[^>]*>/g, "").trim();
       };
 
-      // 1. Create a CLEAN object with ONLY the columns that exist in your DB
+      // ✅ 3. Prepare values object
       const values = {
         blog_title: data.blog_title || "",
         slug: data.slug || "",
@@ -186,55 +203,56 @@ app.post(
         blog_meta_description: data.blog_meta_description || "",
         banner_metatag: data.banner_metatag || "",
         thumbnail_metatag: data.thumbnail_metatag || "",
-        
+
         // Images
-        banner_image: files.banner_image ? files.banner_image[0].path : "",
-        thumbnail_image: files.thumbnail_image ? files.thumbnail_image[0].path : "",
-        image1: files.image1 ? files.image1[0].path : "",
-        image2: files.image2 ? files.image2[0].path : "",
-        image3: files.image3 ? files.image3[0].path : "",
+        banner_image: files.banner_image?.[0]?.path || "",
+        thumbnail_image: files.thumbnail_image?.[0]?.path || "",
+        image1: files.image1?.[0]?.path || "",
+        image2: files.image2?.[0]?.path || "",
+        image3: files.image3?.[0]?.path || "",
+
         image1_metatag: data.image1_metatag || "",
         image2_metatag: data.image2_metatag || "",
         image3_metatag: data.image3_metatag || "",
-
-        // Contents (HTML)
-        blog_content1: data.blog_content1 || "",
-        blog_content2: data.blog_content2 || "",
-        blog_content3: data.blog_content3 || "",
-        blog_content4: data.blog_content4 || "",
-        blog_content5: data.blog_content5 || "",
-
-        // Contents (Text Versions - Make sure these columns exist in DB!)
-        blog_content1_text: stripHtml(data.blog_content1),
-        blog_content2_text: stripHtml(data.blog_content2),
-        blog_content3_text: stripHtml(data.blog_content3),
-        blog_content4_text: stripHtml(data.blog_content4),
-        blog_content5_text: stripHtml(data.blog_content5),
       };
 
-      // 2. Add H2 and H3 headings dynamically
+      // ✅ 4. Add blog contents dynamically
+      for (let i = 1; i <= 5; i++) {
+        const key = `blog_content${i}`;
+        values[key] = data[key] || "";
+        values[`${key}_text`] = stripHtml(data[key]);
+      }
+
+      // ✅ 5. Add H2 & H3 dynamically
       for (let i = 1; i <= 10; i++) {
         values[`h2_${i}`] = data[`h2_${i}`] || "";
         values[`h3_${i}`] = data[`h3_${i}`] || "";
       }
 
-      // 3. DO NOT include ID if it's empty (Let MySQL handle Auto-Increment)
+      // ✅ 6. Optional ID (only if valid)
       if (data.id && data.id !== "" && data.id !== "null") {
         values.id = data.id;
       }
 
-      // 4. Use standard query with the object
+      // ✅ 7. Debug logs (VERY useful in Render)
+      console.log("FINAL VALUES:", values);
+
+      // ✅ 8. Insert query (SAFE)
       const sql = "INSERT INTO blogs SET ?";
       const [result] = await db.query(sql, values);
 
-      res.json({ message: "Blog Created Successfully", result });
+      res.json({
+        message: "Blog Created Successfully",
+        result,
+      });
+
     } catch (err) {
       console.error("SERVER ERROR:", err);
-      // Log the specific SQL error for better debugging
-      res.status(500).json({ 
-        message: "Database Insert Error", 
+
+      res.status(500).json({
+        message: "Database Insert Error",
         error: err.message,
-        sqlState: err.sqlState 
+        sqlState: err.sqlState,
       });
     }
   }
