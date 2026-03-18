@@ -156,6 +156,7 @@ app.get('/sitemap.xml', async (req, res) => {
 
 
 // ========== BLOG CREATION ROUTE ==========
+
 app.post(
   "/api/blogs",
   upload.fields([
@@ -169,49 +170,114 @@ app.post(
     try {
       const data = req.body;
       const files = req.files;
+
+      // Robust Strip HTML function
       const stripHtml = (html) => {
-        if (!html) return "";
-      
+        // Force check: if it's not a string, return empty string
+        if (!html || typeof html !== 'string') return "";
         
         const temp = html.replace(/&nbsp;/g, " ");
-      
-        
         return temp.replace(/<[^>]*>/g, "").trim();
       };
 
+      // Prepare values - ensuring we don't pass 'undefined' to SQL
       const values = {
+        // Spread data first (includes titles, meta, etc.)
         ...data,
-        banner_image: files.banner_image ? files.banner_image[0].path : "",
-        thumbnail_image: files.thumbnail_image ? files.thumbnail_image[0].path : "",
-        image1: files.image1 ? files.image1[0].path : "",
-        image2: files.image2 ? files.image2[0].path : "",
-        image3: files.image3 ? files.image3[0].path : "",
         
-  blog_content1: data.blog_content1,
-  blog_content2: data.blog_content2,
-  blog_content3: data.blog_content3,
-  blog_content4: data.blog_content4,
-  blog_content5: data.blog_content5,
+        // Handle Files: If file exists, use path, otherwise empty string
+        banner_image: files.banner_image ? files.banner_image[0].path : (data.banner_image || ""),
+        thumbnail_image: files.thumbnail_image ? files.thumbnail_image[0].path : (data.thumbnail_image || ""),
+        image1: files.image1 ? files.image1[0].path : (data.image1 || ""),
+        image2: files.image2 ? files.image2[0].path : (data.image2 || ""),
+        image3: files.image3 ? files.image3[0].path : (data.image3 || ""),
 
-  
-  blog_content1_text: stripHtml(data.blog_content1),
-  blog_content2_text: stripHtml(data.blog_content2),
-  blog_content3_text: stripHtml(data.blog_content3),
-  blog_content4_text: stripHtml(data.blog_content4),
-  blog_content5_text: stripHtml(data.blog_content5),
+        // Explicitly handle content HTML
+        blog_content1: data.blog_content1 || "",
+        blog_content2: data.blog_content2 || "",
+        blog_content3: data.blog_content3 || "",
+        blog_content4: data.blog_content4 || "",
+        blog_content5: data.blog_content5 || "",
+
+        // Explicitly handle content Plain Text
+        blog_content1_text: stripHtml(data.blog_content1),
+        blog_content2_text: stripHtml(data.blog_content2),
+        blog_content3_text: stripHtml(data.blog_content3),
+        blog_content4_text: stripHtml(data.blog_content4),
+        blog_content5_text: stripHtml(data.blog_content5),
       };
 
-      const sql = `INSERT INTO blogs SET ?`;
+      // IMPORTANT: Remove 'id' if it's empty string so MySQL can auto-increment
+      if (values.id === "" || values.id === "null") {
+        delete values.id;
+      }
 
+      const sql = `INSERT INTO blogs SET ?`;
       const [result] = await db.query(sql, values);
 
       res.json({ message: "Blog Created Successfully", result });
     } catch (err) {
-      console.log("SQL ERROR:", err);
-      res.status(500).json({ message: "Database Insert Error", error: err });
+      console.log("SERVER ERROR:", err);
+      res.status(500).json({ message: "Database Insert Error", error: err.message });
     }
   }
 );
+// app.post(
+//   "/api/blogs",
+//   upload.fields([
+//     { name: "banner_image", maxCount: 1 },
+//     { name: "thumbnail_image", maxCount: 1 },
+//     { name: "image1", maxCount: 1 },
+//     { name: "image2", maxCount: 1 },
+//     { name: "image3", maxCount: 1 },
+//   ]),
+//   async (req, res) => {
+//     try {
+//       const data = req.body;
+//       const files = req.files;
+//       const stripHtml = (html) => {
+//         if (!html) return "";
+      
+        
+//         const temp = html.replace(/&nbsp;/g, " ");
+      
+        
+//         return temp.replace(/<[^>]*>/g, "").trim();
+//       };
+
+//       const values = {
+//         ...data,
+//         banner_image: files.banner_image ? files.banner_image[0].path : "",
+//         thumbnail_image: files.thumbnail_image ? files.thumbnail_image[0].path : "",
+//         image1: files.image1 ? files.image1[0].path : "",
+//         image2: files.image2 ? files.image2[0].path : "",
+//         image3: files.image3 ? files.image3[0].path : "",
+        
+//   blog_content1: data.blog_content1,
+//   blog_content2: data.blog_content2,
+//   blog_content3: data.blog_content3,
+//   blog_content4: data.blog_content4,
+//   blog_content5: data.blog_content5,
+
+  
+//   blog_content1_text: stripHtml(data.blog_content1),
+//   blog_content2_text: stripHtml(data.blog_content2),
+//   blog_content3_text: stripHtml(data.blog_content3),
+//   blog_content4_text: stripHtml(data.blog_content4),
+//   blog_content5_text: stripHtml(data.blog_content5),
+//       };
+
+//       const sql = `INSERT INTO blogs SET ?`;
+
+//       const [result] = await db.query(sql, values);
+
+//       res.json({ message: "Blog Created Successfully", result });
+//     } catch (err) {
+//       console.log("SQL ERROR:", err);
+//       res.status(500).json({ message: "Database Insert Error", error: err });
+//     }
+//   }
+// );
 
 // =======================================================
 // contact us page api
