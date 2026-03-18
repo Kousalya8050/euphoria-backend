@@ -171,35 +171,40 @@ app.post(
       const data = req.body;
       const files = req.files;
 
-      // Robust Strip HTML function
       const stripHtml = (html) => {
-        // Force check: if it's not a string, return empty string
         if (!html || typeof html !== 'string') return "";
-        
         const temp = html.replace(/&nbsp;/g, " ");
         return temp.replace(/<[^>]*>/g, "").trim();
       };
 
-      // Prepare values - ensuring we don't pass 'undefined' to SQL
+      // 1. Create a CLEAN object with ONLY the columns that exist in your DB
       const values = {
-        // Spread data first (includes titles, meta, etc.)
-        ...data,
+        blog_title: data.blog_title || "",
+        slug: data.slug || "",
+        product_category: data.product_category || "Others",
+        blog_meta_title: data.blog_meta_title || "",
+        blog_meta_description: data.blog_meta_description || "",
+        banner_metatag: data.banner_metatag || "",
+        thumbnail_metatag: data.thumbnail_metatag || "",
         
-        // Handle Files: If file exists, use path, otherwise empty string
-        banner_image: files.banner_image ? files.banner_image[0].path : (data.banner_image || ""),
-        thumbnail_image: files.thumbnail_image ? files.thumbnail_image[0].path : (data.thumbnail_image || ""),
-        image1: files.image1 ? files.image1[0].path : (data.image1 || ""),
-        image2: files.image2 ? files.image2[0].path : (data.image2 || ""),
-        image3: files.image3 ? files.image3[0].path : (data.image3 || ""),
+        // Images
+        banner_image: files.banner_image ? files.banner_image[0].path : "",
+        thumbnail_image: files.thumbnail_image ? files.thumbnail_image[0].path : "",
+        image1: files.image1 ? files.image1[0].path : "",
+        image2: files.image2 ? files.image2[0].path : "",
+        image3: files.image3 ? files.image3[0].path : "",
+        image1_metatag: data.image1_metatag || "",
+        image2_metatag: data.image2_metatag || "",
+        image3_metatag: data.image3_metatag || "",
 
-        // Explicitly handle content HTML
+        // Contents (HTML)
         blog_content1: data.blog_content1 || "",
         blog_content2: data.blog_content2 || "",
         blog_content3: data.blog_content3 || "",
         blog_content4: data.blog_content4 || "",
         blog_content5: data.blog_content5 || "",
 
-        // Explicitly handle content Plain Text
+        // Contents (Text Versions - Make sure these columns exist in DB!)
         blog_content1_text: stripHtml(data.blog_content1),
         blog_content2_text: stripHtml(data.blog_content2),
         blog_content3_text: stripHtml(data.blog_content3),
@@ -207,18 +212,30 @@ app.post(
         blog_content5_text: stripHtml(data.blog_content5),
       };
 
-      // IMPORTANT: Remove 'id' if it's empty string so MySQL can auto-increment
-      if (values.id === "" || values.id === "null") {
-        delete values.id;
+      // 2. Add H2 and H3 headings dynamically
+      for (let i = 1; i <= 10; i++) {
+        values[`h2_${i}`] = data[`h2_${i}`] || "";
+        values[`h3_${i}`] = data[`h3_${i}`] || "";
       }
 
-      const sql = `INSERT INTO blogs SET ?`;
+      // 3. DO NOT include ID if it's empty (Let MySQL handle Auto-Increment)
+      if (data.id && data.id !== "" && data.id !== "null") {
+        values.id = data.id;
+      }
+
+      // 4. Use standard query with the object
+      const sql = "INSERT INTO blogs SET ?";
       const [result] = await db.query(sql, values);
 
       res.json({ message: "Blog Created Successfully", result });
     } catch (err) {
-      console.log("SERVER ERROR:", err);
-      res.status(500).json({ message: "Database Insert Error", error: err.message });
+      console.error("SERVER ERROR:", err);
+      // Log the specific SQL error for better debugging
+      res.status(500).json({ 
+        message: "Database Insert Error", 
+        error: err.message,
+        sqlState: err.sqlState 
+      });
     }
   }
 );
