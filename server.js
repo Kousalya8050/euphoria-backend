@@ -167,96 +167,53 @@ app.post(
     { name: "image3", maxCount: 1 },
   ]),
   async (req, res) => {
-    console.log("FINAL VALUES:", values);
     try {
       const data = req.body;
       const files = req.files || {};
-
-      // ✅ 1. Normalize blog_content (handles FormData arrays)
+  
+      // ✅ Declare FIRST
+      const values = {};
+  
+      // ✅ Normalize content
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
         if (Array.isArray(data[key])) {
           data[key] = data[key].join("");
         }
       }
-
-      // ✅ 2. Safe HTML strip function
+  
+      // ✅ Strip HTML function
       const stripHtml = (html) => {
         if (!html) return "";
-
-        if (Array.isArray(html)) {
-          html = html.join("");
-        }
-
+        if (Array.isArray(html)) html = html.join("");
         if (typeof html !== "string") return "";
-
-        const temp = html.replace(/&nbsp;/g, " ");
-        return temp.replace(/<[^>]*>/g, "").trim();
+        return html.replace(/<[^>]*>/g, "").trim();
       };
-
-      // ✅ 3. Prepare values object
-      const values = {
-        blog_title: data.blog_title || "",
-        slug: data.slug || "",
-        product_category: data.product_category || "Others",
-        blog_meta_title: data.blog_meta_title || "",
-        blog_meta_description: data.blog_meta_description || "",
-        banner_metatag: data.banner_metatag || "",
-        thumbnail_metatag: data.thumbnail_metatag || "",
-
-        // Images
-        banner_image: files.banner_image?.[0]?.path || "",
-        thumbnail_image: files.thumbnail_image?.[0]?.path || "",
-        image1: files.image1?.[0]?.path || "",
-        image2: files.image2?.[0]?.path || "",
-        image3: files.image3?.[0]?.path || "",
-
-        image1_metatag: data.image1_metatag || "",
-        image2_metatag: data.image2_metatag || "",
-        image3_metatag: data.image3_metatag || "",
-      };
-
-      // ✅ 4. Add blog contents dynamically
+  
+      // ✅ Now assign values
+      values.blog_title = data.blog_title || "";
+      values.slug = data.slug || "";
+      values.product_category = data.product_category || "Others";
+  
+      values.banner_image = files.banner_image?.[0]?.path || "";
+  
+      // ✅ Add dynamic contents
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
         values[key] = data[key] || "";
         values[`${key}_text`] = stripHtml(data[key]);
       }
-
-      // ✅ 5. Add H2 & H3 dynamically
-      for (let i = 1; i <= 10; i++) {
-        values[`h2_${i}`] = data[`h2_${i}`] || "";
-        values[`h3_${i}`] = data[`h3_${i}`] || "";
-      }
-
-      // ✅ 6. Optional ID (only if valid)
-      if (data.id && data.id !== "" && data.id !== "null") {
-        values.id = data.id;
-      }
-
-      // ✅ 7. Debug logs (VERY useful in Render)
-      console.log("FINAL VALUES:", values);
-
-      // ✅ 8. Insert query (SAFE)
-      const sql = "INSERT INTO blogs SET ?";
-      const [result] = await db.query(sql, values);
-
-      res.json({
-        message: "Blog Created Successfully",
-        result,
-      });
-
+  
+      // ✅ Query
+      const [result] = await db.query("INSERT INTO blogs SET ?", values);
+  
+      res.json({ message: "Success", result });
+  
     } catch (err) {
-      console.error("SERVER ERROR:", err);
-
-      res.status(500).json({
-        message: "Database Insert Error",
-        error: err.message,
-        sqlState: err.sqlState,
-      });
+      console.error(err);
+      res.status(500).json({ error: err.message });
     }
-  }
-);
+  });
 // app.post(
 //   "/api/blogs",
 //   upload.fields([
@@ -613,7 +570,8 @@ async function fetchYouTubeData_l() {
 
   let videos = [];
 let nextPageToken = "";
-const UPLOADS_PLAYLIST_ID = "UU9pRPRlo6wIOakEOi_2RWwA";
+// const UPLOADS_PLAYLIST_ID = "UU9pRPRlo6wIOakEOi_2RWwA";
+const UPLOADS_PLAYLIST_ID = "UCkJEpR7JmS36tajD34Gp4VA";
 
 while (true) {
   const playlistRes = await axios.get(
