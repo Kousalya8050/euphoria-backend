@@ -170,10 +170,7 @@ app.post(
     try {
       const data = req.body;
       const files = req.files || {};
-  
-      // ✅ Declare FIRST
-      const values = {};
-  
+
       // ✅ Normalize content
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
@@ -181,39 +178,44 @@ app.post(
           data[key] = data[key].join("");
         }
       }
-  
-      // ✅ Strip HTML function
+
+      // ✅ Strip HTML
       const stripHtml = (html) => {
         if (!html) return "";
         if (Array.isArray(html)) html = html.join("");
         if (typeof html !== "string") return "";
         return html.replace(/<[^>]*>/g, "").trim();
       };
-  
-      // ✅ Now assign values
-      values.blog_title = data.blog_title || "";
-      values.slug = data.slug || "";
-      values.product_category = data.product_category || "Others";
-  
+
+      // ✅ IMPORTANT: include all fields
+      const values = {
+        ...data,
+      };
+
+      // ✅ Override file uploads
       values.banner_image = files.banner_image?.[0]?.path || "";
-  
-      // ✅ Add dynamic contents
+      values.thumbnail_image = files.thumbnail_image?.[0]?.path || "";
+      values.image1 = files.image1?.[0]?.path || "";
+      values.image2 = files.image2?.[0]?.path || "";
+      values.image3 = files.image3?.[0]?.path || "";
+
+      // ✅ Process content
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
         values[key] = data[key] || "";
         values[`${key}_text`] = stripHtml(data[key]);
       }
-  
-      // ✅ Query
+
       const [result] = await db.query("INSERT INTO blogs SET ?", values);
-  
+
       res.json({ message: "Success", result });
-  
+
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err.message });
     }
-  });
+  }
+);
 // app.post(
 //   "/api/blogs",
 //   upload.fields([
