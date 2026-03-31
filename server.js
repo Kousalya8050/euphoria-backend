@@ -1066,39 +1066,88 @@ app.delete("/api/blogs/:id", async (req, res) => {
 });
 
 // EDIT BLOG
+// app.put(
+//   "/api/blogs/:id",
+//   upload.fields([
+//     { name: "banner_image" },
+//     { name: "thumbnail_image" },
+//     { name: "image1" },
+//     { name: "image2" },
+//     { name: "image3" }
+//   ]),
+//   async (req, res) => {
+//     const { id } = req.params;
+//     const data = { ...req.body };
+
+//     delete data.id;
+
+//     // ✅ FIX: convert all blog_content arrays
+//     Object.keys(data).forEach(key => {
+//       if (key.startsWith("blog_content") && Array.isArray(data[key])) {
+//         data[key] = data[key].join("");
+//       }
+//       if (data[key] === undefined) delete data[key];
+//     });
+
+//     if (Object.keys(data).length === 0) {
+//       return res.status(400).json({ error: "No valid data provided for update" });
+//     }
+
+//     try {
+//       await db.query("UPDATE blogs SET ? WHERE id = ?", [data, id]);
+//       res.json({ message: "Blog updated successfully" });
+//     } catch (err) {
+//       console.error("DB Error:", err);
+//       res.status(500).json({ error: "DB error" });
+//     }
+//   }
+// );
 app.put(
   "/api/blogs/:id",
   upload.fields([
-    { name: "banner_image" },
-    { name: "thumbnail_image" },
-    { name: "image1" },
-    { name: "image2" },
-    { name: "image3" }
+    { name: "banner_image", maxCount: 1 },
+    { name: "thumbnail_image", maxCount: 1 },
+    { name: "image1", maxCount: 1 },
+    { name: "image2", maxCount: 1 },
+    { name: "image3", maxCount: 1 },
   ]),
   async (req, res) => {
     const { id } = req.params;
     const data = { ...req.body };
-
-    delete data.id;
-
-    // ✅ FIX: convert all blog_content arrays
-    Object.keys(data).forEach(key => {
-      if (key.startsWith("blog_content") && Array.isArray(data[key])) {
-        data[key] = data[key].join("");
-      }
-      if (data[key] === undefined) delete data[key];
-    });
-
-    if (Object.keys(data).length === 0) {
-      return res.status(400).json({ error: "No valid data provided for update" });
-    }
+    const files = req.files || {};
 
     try {
+      // 1. Handle File Uploads (only update if a new file was provided)
+      if (files.banner_image) data.banner_image = files.banner_image[0].path;
+      if (files.thumbnail_image) data.thumbnail_image = files.thumbnail_image[0].path;
+      if (files.image1) data.image1 = files.image1[0].path;
+      if (files.image2) data.image2 = files.image2[0].path;
+      if (files.image3) data.image3 = files.image3[0].path;
+
+      // 2. Clean up data (remove ID so it doesn't try to update the primary key)
+      delete data.id;
+
+      // 3. Process Content Strings & Strip HTML for search text
+      const stripHtml = (html) => {
+        if (!html) return "";
+        return html.replace(/<[^>]*>/g, "").trim();
+      };
+
+      for (let i = 1; i <= 5; i++) {
+        const key = `blog_content${i}`;
+        if (data[key] !== undefined) {
+          data[`${key}_text`] = stripHtml(data[key]);
+        }
+      }
+
+      // 4. Update the Database
+      // The "SET ?" syntax automatically maps all keys in 'data' to columns in the DB
       await db.query("UPDATE blogs SET ? WHERE id = ?", [data, id]);
+
       res.json({ message: "Blog updated successfully" });
     } catch (err) {
-      console.error("DB Error:", err);
-      res.status(500).json({ error: "DB error" });
+      console.error("DB Error during update:", err);
+      res.status(500).json({ error: "DB error", details: err.message });
     }
   }
 );
