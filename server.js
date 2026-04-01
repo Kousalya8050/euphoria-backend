@@ -1117,31 +1117,46 @@ app.put(
     const files = req.files || {};
 
     try {
-      // 1. Handle File Uploads (only update if a new file was provided)
+      // 1. Handle File Uploads
       if (files.banner_image) data.banner_image = files.banner_image[0].path;
       if (files.thumbnail_image) data.thumbnail_image = files.thumbnail_image[0].path;
       if (files.image1) data.image1 = files.image1[0].path;
       if (files.image2) data.image2 = files.image2[0].path;
       if (files.image3) data.image3 = files.image3[0].path;
 
-      // 2. Clean up data (remove ID so it doesn't try to update the primary key)
+      // 2. Clean up data
       delete data.id;
 
-      // 3. Process Content Strings & Strip HTML for search text
+      // 3. Robust stripHtml Function
       const stripHtml = (html) => {
-        if (!html) return "";
+        // If it's an array, join it into a string
+        if (Array.isArray(html)) html = html.join("");
+        // If it's null, undefined, or not a string, return empty
+        if (!html || typeof html !== "string") return "";
+        // Safe to replace
         return html.replace(/<[^>]*>/g, "").trim();
       };
 
+      // 4. Process Content and Search Text
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
-        if (data[key] !== undefined) {
+        
+        if (data[key] !== undefined && data[key] !== null) {
+          // Force it to be a string if it's an array (common with multipart parsers)
+          if (Array.isArray(data[key])) {
+            data[key] = data[key].join("");
+          }
+          
+          // Generate the text-only version for the DB
           data[`${key}_text`] = stripHtml(data[key]);
+        } else {
+          // If the field is missing/null, ensure it's at least an empty string
+          data[key] = "";
+          data[`${key}_text`] = "";
         }
       }
 
-      // 4. Update the Database
-      // The "SET ?" syntax automatically maps all keys in 'data' to columns in the DB
+      // 5. Update the Database
       await db.query("UPDATE blogs SET ? WHERE id = ?", [data, id]);
 
       res.json({ message: "Blog updated successfully" });
