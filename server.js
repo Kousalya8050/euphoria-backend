@@ -1056,12 +1056,24 @@ app.patch("/api/blogs/:id/status", async (req, res) => {
 app.delete("/api/blogs/:id", async (req, res) => {
   const { id } = req.params;
 
+  if (!id) {
+    return res.status(400).json({ error: "No ID provided" });
+  }
+
   try {
-    await db.query("DELETE FROM blogs WHERE id = ?", [id]);
+    // 1. Execute delete
+    const [result] = await db.query("DELETE FROM blogs WHERE id = ?", [id]);
+
+    // 2. Check if a row was actually deleted
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Blog not found" });
+    }
+
+    console.log(`Blog ID ${id} deleted successfully.`);
     res.json({ message: "Blog deleted successfully" });
   } catch (err) {
-    console.error("DB Error:", err);
-    res.status(500).json({ error: "DB error" });
+    console.error("DB Error during delete:", err);
+    res.status(500).json({ error: "Internal server error", details: err.message });
   }
 });
 
