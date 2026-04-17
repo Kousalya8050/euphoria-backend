@@ -23,9 +23,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'build')));
 
 
-const { S3Client } = require("@aws-sdk/client-s3");
-const multerS3 = require("multer-s3");
-
 // 1. Initialize S3 Client for DigitalOcean Bangalore (blr1)
 const s3 = new S3Client({
     endpoint: "https://blr1.digitaloceanspaces.com",
