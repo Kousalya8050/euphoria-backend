@@ -10,6 +10,8 @@ const axios = require("axios");
 const xml2js = require("xml2js");
 const { SitemapStream, streamToPromise } = require('sitemap');
 const { createGzip } = require('zlib');
+const { S3Client } = require("@aws-sdk/client-s3");
+const multerS3 = require("multer-s3");
 
 
 dotenv.config();
@@ -21,7 +23,32 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'build')));
 
 
+const { S3Client } = require("@aws-sdk/client-s3");
+const multerS3 = require("multer-s3");
 
+// 1. Initialize S3 Client for DigitalOcean Bangalore (blr1)
+const s3 = new S3Client({
+    endpoint: "https://blr1.digitaloceanspaces.com",
+    region: "us-east-1", // Must be us-east-1 for DO compatibility
+    credentials: {
+        accessKeyId: process.env.DO_SPACES_KEY,
+        secretAccessKey: process.env.DO_SPACES_SECRET,
+    },
+});
+
+// 2. Redefine 'upload' to use DigitalOcean instead of local disk
+const upload = multer({
+    storage: multerS3({
+        s3: s3,
+        bucket: process.env.DO_SPACES_BUCKET,
+        acl: "public-read", // Makes images viewable on your site
+        contentType: multerS3.AUTO_CONTENT_TYPE, // Displays image in browser instead of downloading
+        key: function (req, file, cb) {
+            const cleanName = file.originalname.replace(/\s+/g, "-");
+            cb(null, `blogs/${Date.now()}-${cleanName}`); // Stores in a 'blogs' folder
+        },
+    }),
+});
 
 // ========== Middleware ==========
 app.use((req, res, next) => {
@@ -93,7 +120,7 @@ const storage = multer.diskStorage({
     cb(null, uniqueName);
   },
 });
-const upload = multer({ storage });
+// const upload = multer({ storage });
 
 // ========== Default Route ==========
 app.get("/", (req, res) => {
@@ -185,10 +212,10 @@ app.post(
   ]),
   async (req, res) => {
     try {
-      const data = req.body;
+      const data = { ...req.body };
       const files = req.files || {};
 
-      // ✅ Normalize content
+      // ✅ Normalize content strings
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
         if (Array.isArray(data[key])) {
@@ -196,7 +223,7 @@ app.post(
         }
       }
 
-      // ✅ Strip HTML
+      // ✅ Strip HTML helper
       const stripHtml = (html) => {
         if (!html) return "";
         if (Array.isArray(html)) html = html.join("");
@@ -204,31 +231,28 @@ app.post(
         return html.replace(/<[^>]*>/g, "").trim();
       };
 
-      // ✅ IMPORTANT: include all fields
-      const values = {
-        ...data,
-      };
+      // ✅ Use .location (DigitalOcean URL) instead of .path (Local folder)
+      data.banner_image = files.banner_image?.[0]?.location || "";
+      data.thumbnail_image = files.thumbnail_image?.[0]?.location || "";
+      data.image1 = files.image1?.[0]?.location || "";
+      data.image2 = files.image2?.[0]?.location || "";
+      data.image3 = files.image3?.[0]?.location || "";
 
-      // ✅ Override file uploads
-      values.banner_image = files.banner_image?.[0]?.path || "";
-      values.thumbnail_image = files.thumbnail_image?.[0]?.path || "";
-      values.image1 = files.image1?.[0]?.path || "";
-      values.image2 = files.image2?.[0]?.path || "";
-      values.image3 = files.image3?.[0]?.path || "";
-
-      // ✅ Process content
+      // ✅ Process content and create searchable text
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
-        values[key] = data[key] || "";
-        values[`${key}_text`] = stripHtml(data[key]);
+        const content = data[key] || "";
+        data[key] = content;
+        data[`${key}_text`] = stripHtml(content);
       }
 
-      const [result] = await db.query("INSERT INTO blogs SET ?", values);
+      // ✅ Insert into DB
+      const [result] = await db.query("INSERT INTO blogs SET ?", data);
 
-      res.json({ message: "Success", result });
+      res.json({ message: "Blog created successfully in cloud", result });
 
     } catch (err) {
-      console.error(err);
+      console.error("DO Spaces Upload Error:", err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -1178,11 +1202,11 @@ app.put(
 
     try {
       // 1. Handle File Uploads
-      if (files.banner_image) data.banner_image = files.banner_image[0].path;
-      if (files.thumbnail_image) data.thumbnail_image = files.thumbnail_image[0].path;
-      if (files.image1) data.image1 = files.image1[0].path;
-      if (files.image2) data.image2 = files.image2[0].path;
-      if (files.image3) data.image3 = files.image3[0].path;
+      if (files.banner_image) data.banner_image = files.banner_image[0].location;
+      if (files.thumbnail_image) data.thumbnail_image = files.thumbnail_image[0].location;
+      if (files.image1) data.image1 = files.image1[0].location;
+      if (files.image2) data.image2 = files.image2[0].location;
+      if (files.image3) data.image3 = files.image3[0].location;
 
       // 2. Clean up data
       delete data.id;
