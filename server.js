@@ -111,15 +111,15 @@ console.log("MySQL Pool Created Successfully");
 //   },
 // });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/"),
-  filename: (req, file, cb) => {
-    // Replace spaces, parentheses, and special characters with hyphens
-    const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, "-");
-    const uniqueName = Date.now() + "-" + cleanName;
-    cb(null, uniqueName);
-  },
-});
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => cb(null, "uploads/"),
+//   filename: (req, file, cb) => {
+//     // Replace spaces, parentheses, and special characters with hyphens
+//     const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, "-");
+//     const uniqueName = Date.now() + "-" + cleanName;
+//     cb(null, uniqueName);
+//   },
+// });
 // const upload = multer({ storage });
 
 // ========== Default Route ==========
@@ -990,54 +990,10 @@ app.get("/api/blogs_listing", async (req, res) => {
 });
 
 app.get("/api/blogs/:slug", async (req, res) => {
-  console.log("entered into blog details api");
-
   const { slug } = req.params;
 
   try {
-    const sql = `
-      SELECT
-      id,
-      blog_title,
-      slug,
-      product_category,
-      blog_meta_title,
-      blog_meta_description,
-      banner_image,
-      banner_metatag,
-      thumbnail_image,
-      thumbnail_metatag,
-
-      blog_content1,
-      blog_content2,
-      blog_content3,
-      blog_content4,
-      blog_content5,
-
-      image1,
-      image2,
-      image3,
-      image1_metatag,
-      image2_metatag,
-      image3_metatag,
-
-      h2_1, h3_1,
-      h2_2, h3_2,
-      h2_3, h3_3,
-      h2_4, h3_4,
-      h2_5, h3_5,
-      h2_6, h3_6,
-      h2_7, h3_7,
-      h2_8, h3_8,
-      h2_9, h3_9,
-      h2_10, h3_10,
-      status,
-      created_at
-      FROM blogs
-      WHERE slug = ?
-      LIMIT 1
-    `;
-
+    const sql = `SELECT * FROM blogs WHERE slug = ? LIMIT 1`;
     const [rows] = await db.query(sql, [slug]);
 
     if (rows.length === 0) {
@@ -1046,59 +1002,23 @@ app.get("/api/blogs/:slug", async (req, res) => {
 
     const blog = rows[0];
 
-    // res.json({
-    //   ...blog,
-    //   image1: blog.image1
-    //     ? `https://euphoria-backend-oii0.onrender.com/${blog.image1}`
-    //     : null,
-    //   image2: blog.image2
-    //     ? `https://euphoria-backend-oii0.onrender.com/${blog.image2}`
-    //     : null,
-    //   image3: blog.image3
-    //     ? `https://euphoria-backend-oii0.onrender.com/${blog.image3}`
-    //     : null,
-    //   banner_image: blog.banner_image
-    //       ? `https://euphoria-backend-oii0.onrender.com/${blog.banner_image}`
-    //       : null,
-    //    thumbnail_image: blog.thumbnail_image
-    //         ? `https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`
-    //         : null
-    // }); //production
-
-    res.json({
+    // ✅ FIX: No more URL prepending. DigitalOcean provides full URLs.
+    // We only use encodeURI if the data exists, but DO URLs are usually already safe.
+    const response = {
       ...blog,
-      image1: blog.image1 ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.image1}`) : null,
-      image2: blog.image2 ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.image2}`) : null,
-      image3: blog.image3 ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.image3}`) : null,
-      banner_image: blog.banner_image ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.banner_image}`) : null,
-      thumbnail_image: blog.thumbnail_image ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`) : null
-    });
-    // res.json({
-    //   ...blog,
-    //   image1: blog.image1
-    //     ? `http://localhost/${blog.image1}`
-    //     : null,
-    //   image2: blog.image2
-    //     ? `http://localhost/${blog.image2}`
-    //     : null,
-    //   image3: blog.image3
-    //     ? `http://localhost/${blog.image3}`
-    //     : null,
-    //   banner_image: blog.banner_image
-    //       ? `http://localhost${blog.banner_image}`
-    //       : null,
-    //    thumbnail_image: blog.thumbnail_image
-    //         ? `http://localhost/${blog.thumbnail_image}`
-    //         : null
-    // });
+      image1: blog.image1 || null,
+      image2: blog.image2 || null,
+      image3: blog.image3 || null,
+      banner_image: blog.banner_image || null,
+      thumbnail_image: blog.thumbnail_image || null
+    };
 
-
+    res.json(response);
   } catch (err) {
     console.error("DB Error:", err);
-    res.status(500).json({ error: "DB error" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
-
 
 // APPROVE / REJECT BLOG
 app.patch("/api/blogs/:id/status", async (req, res) => {
@@ -1201,52 +1121,44 @@ app.put(
     const files = req.files || {};
 
     try {
-      // 1. Handle File Uploads
+      // 1. Map DigitalOcean URLs ONLY if a new file was actually uploaded
       if (files.banner_image) data.banner_image = files.banner_image[0].location;
       if (files.thumbnail_image) data.thumbnail_image = files.thumbnail_image[0].location;
       if (files.image1) data.image1 = files.image1[0].location;
       if (files.image2) data.image2 = files.image2[0].location;
       if (files.image3) data.image3 = files.image3[0].location;
 
-      // 2. Clean up data
+      // 2. Prevent primary key update
       delete data.id;
 
-      // 3. Robust stripHtml Function
+      // 3. Robust HTML Stripper
       const stripHtml = (html) => {
-        // If it's an array, join it into a string
-        if (Array.isArray(html)) html = html.join("");
-        // If it's null, undefined, or not a string, return empty
-        if (!html || typeof html !== "string") return "";
-        // Safe to replace
-        return html.replace(/<[^>]*>/g, "").trim();
+        if (!html) return "";
+        const str = Array.isArray(html) ? html.join("") : String(html);
+        return str.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
       };
 
-      // 4. Process Content and Search Text
+      // 4. Process Content & Search Text
       for (let i = 1; i <= 5; i++) {
         const key = `blog_content${i}`;
-        
-        if (data[key] !== undefined && data[key] !== null) {
-          // Force it to be a string if it's an array (common with multipart parsers)
-          if (Array.isArray(data[key])) {
-            data[key] = data[key].join("");
-          }
-          
-          // Generate the text-only version for the DB
-          data[`${key}_text`] = stripHtml(data[key]);
-        } else {
-          // If the field is missing/null, ensure it's at least an empty string
-          data[key] = "";
-          data[`${key}_text`] = "";
+        if (data[key] !== undefined) {
+          const content = Array.isArray(data[key]) ? data[key].join("") : data[key];
+          data[key] = content;
+          data[`${key}_text`] = stripHtml(content);
         }
       }
 
-      // 5. Update the Database
-      await db.query("UPDATE blogs SET ? WHERE id = ?", [data, id]);
+      // 5. Update Database
+      const [result] = await db.query("UPDATE blogs SET ? WHERE id = ?", [data, id]);
 
-      res.json({ message: "Blog updated successfully" });
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Blog not found" });
+      }
+
+      res.json({ message: "Blog updated successfully in cloud storage" });
     } catch (err) {
-      console.error("DB Error during update:", err);
-      res.status(500).json({ error: "DB error", details: err.message });
+      console.error("Update Error:", err);
+      res.status(500).json({ error: "Update failed", details: err.message });
     }
   }
 );
