@@ -7,6 +7,7 @@ const path = require("path");
 const errorHandler = require("./middleware/errorHandler");
 const { contactUsSchema } = require("./validators/contactus");
 const axios = require("axios");
+const xml2js = require("xml2js");
 const { SitemapStream, streamToPromise } = require('sitemap');
 const { createGzip } = require('zlib');
 
@@ -21,7 +22,13 @@ app.use(express.static(path.join(__dirname, 'build')));
 
 
 
+
 // ========== Middleware ==========
+app.use((req, res, next) => {
+  console.log("👉 REQUEST:", req.method, req.url);
+  next();
+});
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   dotfiles: 'allow',
   index: false,
@@ -69,10 +76,20 @@ const db = mysql
 console.log("MySQL Pool Created Successfully");
 
 // ========== Multer Upload Config ==========
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => cb(null, "uploads/"),
+//   filename: (req, file, cb) => {
+//     const uniqueName = Date.now() + "-" + file.originalname;
+//     cb(null, uniqueName);
+//   },
+// });
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => {
-    const uniqueName = Date.now() + "-" + file.originalname;
+    // Replace spaces, parentheses, and special characters with hyphens
+    const cleanName = file.originalname.replace(/[^a-zA-Z0-9.]/g, "-");
+    const uniqueName = Date.now() + "-" + cleanName;
     cb(null, uniqueName);
   },
 });
@@ -803,10 +820,10 @@ async function refreshYouTubeCache() {
 }
 
 // Run every 30 minutes
-setInterval(refreshYouTubeCache, AUTO_REFRESH_INTERVAL);
+setInterval(refreshYouTubeCache, AUTO_REFRESH_INTERVAL); //--production
 
 // Run immediately when server starts
-refreshYouTubeCache();
+refreshYouTubeCache(); //production
 
 
 // ==========================
@@ -929,6 +946,9 @@ app.get("/api/blogs_listing", async (req, res) => {
       image: blog.thumbnail_image
         ? `https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`
         : null,
+      // image: blog.thumbnail_image
+      //   ? `http://localhost/${blog.thumbnail_image}`
+      //   : null,
       date: new Date(blog.created_at).toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
@@ -1002,24 +1022,52 @@ app.get("/api/blogs/:slug", async (req, res) => {
 
     const blog = rows[0];
 
+    // res.json({
+    //   ...blog,
+    //   image1: blog.image1
+    //     ? `https://euphoria-backend-oii0.onrender.com/${blog.image1}`
+    //     : null,
+    //   image2: blog.image2
+    //     ? `https://euphoria-backend-oii0.onrender.com/${blog.image2}`
+    //     : null,
+    //   image3: blog.image3
+    //     ? `https://euphoria-backend-oii0.onrender.com/${blog.image3}`
+    //     : null,
+    //   banner_image: blog.banner_image
+    //       ? `https://euphoria-backend-oii0.onrender.com/${blog.banner_image}`
+    //       : null,
+    //    thumbnail_image: blog.thumbnail_image
+    //         ? `https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`
+    //         : null
+    // }); //production
+
     res.json({
       ...blog,
-      image1: blog.image1
-        ? `https://euphoria-backend-oii0.onrender.com/${blog.image1}`
-        : null,
-      image2: blog.image2
-        ? `https://euphoria-backend-oii0.onrender.com/${blog.image2}`
-        : null,
-      image3: blog.image3
-        ? `https://euphoria-backend-oii0.onrender.com/${blog.image3}`
-        : null,
-      banner_image: blog.banner_image
-          ? `https://euphoria-backend-oii0.onrender.com/${blog.banner_image}`
-          : null,
-       thumbnail_image: blog.thumbnail_image
-            ? `https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`
-            : null
+      image1: blog.image1 ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.image1}`) : null,
+      image2: blog.image2 ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.image2}`) : null,
+      image3: blog.image3 ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.image3}`) : null,
+      banner_image: blog.banner_image ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.banner_image}`) : null,
+      thumbnail_image: blog.thumbnail_image ? encodeURI(`https://euphoria-backend-oii0.onrender.com/${blog.thumbnail_image}`) : null
     });
+    // res.json({
+    //   ...blog,
+    //   image1: blog.image1
+    //     ? `http://localhost/${blog.image1}`
+    //     : null,
+    //   image2: blog.image2
+    //     ? `http://localhost/${blog.image2}`
+    //     : null,
+    //   image3: blog.image3
+    //     ? `http://localhost/${blog.image3}`
+    //     : null,
+    //   banner_image: blog.banner_image
+    //       ? `http://localhost${blog.banner_image}`
+    //       : null,
+    //    thumbnail_image: blog.thumbnail_image
+    //         ? `http://localhost/${blog.thumbnail_image}`
+    //         : null
+    // });
+
 
   } catch (err) {
     console.error("DB Error:", err);
@@ -1183,18 +1231,99 @@ app.get("/ping", (req, res) => {
   res.send("Server is awake and this api calls the server every 5 minutes");
 });
 
-// search feature for blogs:
+// rss feeds:
 
+
+
+const cron = require("node-cron");
+const { fetchAndStoreRSS } = require("./rssService");
+
+fetchAndStoreRSS(db);
+
+// Runs every 30 minutes
+cron.schedule("34 12 * * *", () => {
+  console.log("⏰ Running RSS cron at 12:30...");
+  fetchAndStoreRSS(db);
+});
+
+async function deleteOldFeeds(db) {
+  try {
+    const query = `
+      DELETE FROM rss_blogs 
+      WHERE pubDate < DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    `;
+
+    const [result] = await db.query(query);
+
+    console.log(`🧹 Deleted ${result.affectedRows} old RSS records`);
+  } catch (error) {
+    console.error("❌ Error deleting old RSS feeds:", error.message);
+  }
+}
+cron.schedule("0 1 * * *", async () => {
+  console.log("🧹 Running cleanup cron at 1:00 AM...");
+
+  try {
+    await deleteOldFeeds(db);
+    console.log("✅ Cleanup completed");
+  } catch (err) {
+    console.error("❌ Cleanup cron error:", err.message);
+  }
+});
+
+
+
+app.get("/api/rss-blogs", async (req, res) => {
+  try {
+    const { category, search } = req.query;
+
+    let query = `
+      SELECT id, title, description, content, category, image, link, pubDate
+      FROM rss_blogs
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    // ✅ Category filter
+    if (category && category !== "All") {
+      query += " AND category = ?";
+      params.push(category);
+    }
+
+    // ✅ Search filter
+    if (search) {
+      query += " AND title LIKE ?";
+      params.push(`%${search}%`);
+    }
+
+    query += " ORDER BY pubDate DESC";
+
+    const [rows] = await db.query(query, params);
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ========== Global Error Handler ==========
 app.use(errorHandler);
 
-
 app.get(/.*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
-});
+}); 
+
+app.use(express.static(path.join(__dirname, 'build'))); 
+
+
 
 // ========== Start Server ==========
+
 app.listen(3000, "0.0.0.0", () => {
   console.log("🚀 Server running on https://euphoria-backend-oii0.onrender.com");
 });
+// app.listen(PORT, "0.0.0.0", () => {
+//   console.log(`🚀 Server running on http://localhost:${PORT}`);
+// });
