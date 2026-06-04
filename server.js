@@ -62,7 +62,9 @@ app.use(
   cors({
     origin: [
       "http://localhost:3001",
-      "https://hilarious-travesseiro-4a5013.netlify.app"
+      "https://hilarious-travesseiro-4a5013.netlify.app",
+      "https://mindwork360.com",
+      "https://www.mindwork360.com"
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
