@@ -8,4 +8,4 @@ Disallow: /search
 Disallow: /admin
 Disallow: /login
 
-Sitemap: https://euphoria-backend-oii0.onrender.com/sitemap.xml
+Sitemap: https://mindwork360.com/sitemap.xml

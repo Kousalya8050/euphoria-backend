@@ -142,7 +142,7 @@ app.get('/sitemap.xml', async (req, res) => {
 
   try {
     const smStream = new SitemapStream({ 
-      hostname: 'https://hilarious-travesseiro-4a5013.netlify.app/' // Replace with your LIVE domain later
+      hostname: 'https://mindwork360.com' 
     });
     const pipeline = smStream.pipe(createGzip());
 
@@ -157,17 +157,17 @@ app.get('/sitemap.xml', async (req, res) => {
     smStream.write({ url: '/resources', changefreq: 'monthly', priority: 0.6 });
     smStream.write({ url: '/contactus', changefreq: 'monthly', priority: 0.5 });
 
-    // 2. Blogs (Fixed backticks)
+    // 2. Blogs
     const [blogs] = await db.query("SELECT slug FROM blogs WHERE status = 'approved'");
     blogs.forEach(blog => {
       smStream.write({ 
-        url: `/blogs/${blog.slug}`, // Use backticks ``
+        url: `/blogs/${blog.slug}`, 
         changefreq: 'weekly', 
         priority: 0.7 
       });
     });
 
-    // 3. Videos (Fixed backticks)
+    // 3. Videos
     const allVideos = [
         ...(youtubeCache.lessons || []),
         ...(youtubeCache.shorts || []),
@@ -178,7 +178,7 @@ app.get('/sitemap.xml', async (req, res) => {
     allVideos.forEach(video => {
       const videoId = video.id?.videoId || video.id;
       smStream.write({ 
-        url: `/video/${videoId}`, // Use backticks ``
+        url: `/video/${videoId}`, 
         changefreq: 'monthly', 
         priority: 0.6 
       });
