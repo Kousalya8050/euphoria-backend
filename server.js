@@ -603,7 +603,8 @@ let youtubeCache_l = {
 };
 
 const YT_API_KEY_l = "AIzaSyCngySm9tpqUTHvEqP6jaOHUsDVlov3AKI";
-const CHANNEL_ID_l = "UC9pRPRlo6wIOakEOi_2RWwA"; 
+// const CHANNEL_ID_l = "UC9pRPRlo6wIOakEOi_2RWwA"; // old dummy channel
+const CHANNEL_ID_l = "UC7IcJI8PUf5Z3zKxnZvTBog"; // same as video lessons channel
 const CACHE_DURATION_l = 30 * 60 * 1000; 
 
 async function fetchYouTubeData_l() {
