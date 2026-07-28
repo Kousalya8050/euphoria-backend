@@ -167,22 +167,21 @@ app.get('/sitemap.xml', async (req, res) => {
       });
     });
 
-    // 3. Videos
-    const allVideos = [
-        ...(youtubeCache.lessons || []),
-        ...(youtubeCache.shorts || []),
-        ...(youtubeCache_l.lessons || []),
-        ...(youtubeCache_l.shorts || []),
-    ];
-
-    allVideos.forEach(video => {
-      const videoId = video.id?.videoId || video.id;
-      smStream.write({ 
-        url: `/video/${videoId}`, 
-        changefreq: 'monthly', 
-        priority: 0.6 
-      });
-    });
+    // 3. Videos (commented out — dummy channel, update with real YouTube links later)
+    // const allVideos = [
+    //     ...(youtubeCache.lessons || []),
+    //     ...(youtubeCache.shorts || []),
+    //     ...(youtubeCache_l.lessons || []),
+    //     ...(youtubeCache_l.shorts || []),
+    // ];
+    // allVideos.forEach(video => {
+    //   const videoId = video.id?.videoId || video.id;
+    //   smStream.write({
+    //     url: `/video/${videoId}`,
+    //     changefreq: 'monthly',
+    //     priority: 0.6
+    //   });
+    // });
 
     smStream.end();
     const sitemapOutput = await streamToPromise(pipeline);
