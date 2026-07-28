@@ -612,8 +612,8 @@ async function fetchYouTubeData_l() {
 
   let videos = [];
 let nextPageToken = "";
-// const UPLOADS_PLAYLIST_ID = "UU9pRPRlo6wIOakEOi_2RWwA";
-const UPLOADS_PLAYLIST_ID = "UU9pRPRlo6wIOakEOi_2RWwA";
+// const UPLOADS_PLAYLIST_ID = "UU9pRPRlo6wIOakEOi_2RWwA"; // old dummy channel
+const UPLOADS_PLAYLIST_ID = "UU7IcJI8PUf5Z3zKxnZvTBog"; // same as video lessons channel
 
 while (true) {
   const playlistRes = await axios.get(
