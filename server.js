@@ -450,7 +450,7 @@ let youtubeCache = {
 };
 
 const YT_API_KEY = "AIzaSyCngySm9tpqUTHvEqP6jaOHUsDVlov3AKI";
-const CHANNEL_ID = "UC7IcJI8PUf5Z3zKxnZvTBog"; 
+const CHANNEL_ID = "UCzrqQ6sVfw_ToUaCbkvIm5w"; // MindWork360 (@mindwork360)
 const CACHE_DURATION = 30 * 60 * 1000; 
 
 async function fetchYouTubeData() {
@@ -604,7 +604,7 @@ let youtubeCache_l = {
 
 const YT_API_KEY_l = "AIzaSyCngySm9tpqUTHvEqP6jaOHUsDVlov3AKI";
 // const CHANNEL_ID_l = "UC9pRPRlo6wIOakEOi_2RWwA"; // old dummy channel
-const CHANNEL_ID_l = "UC7IcJI8PUf5Z3zKxnZvTBog"; // same as video lessons channel
+const CHANNEL_ID_l = "UCzrqQ6sVfw_ToUaCbkvIm5w"; // MindWork360 (@mindwork360)
 const CACHE_DURATION_l = 30 * 60 * 1000; 
 
 async function fetchYouTubeData_l() {
@@ -1339,13 +1339,13 @@ app.get("/ping", (req, res) => {
 const cron = require("node-cron");
 const { fetchAndStoreRSS } = require("./rssService");
 
-fetchAndStoreRSS(db);
+// fetchAndStoreRSS(db);
 
 // Runs every 30 minutes
-cron.schedule("34 12 * * *", () => {
-  console.log("⏰ Running RSS cron at 12:30...");
-  fetchAndStoreRSS(db);
-});
+// cron.schedule("34 12 * * *", () => {
+//   console.log("⏰ Running RSS cron at 12:30...");
+//   fetchAndStoreRSS(db);
+// });
 
 async function deleteOldFeeds(db) {
   try {
