@@ -504,8 +504,9 @@ async function fetchYouTubeData() {
   const shorts = [];
 
   videos.forEach((video) => {
-    const duration = video.contentDetails.duration;
-    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    const duration = video.contentDetails?.duration || "";
+    // Live/upcoming videos report "P0D" (no "PT"), so match can be null
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/) || [];
 
     const totalSeconds =
       (parseInt(match[1] || 0) * 3600) +
@@ -723,8 +724,9 @@ while (true) {
   const shorts = [];
 
   videos.forEach((video) => {
-    const duration = video.contentDetails.duration;
-    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    const duration = video.contentDetails?.duration || "";
+    // Live/upcoming videos report "P0D" (no "PT"), so match can be null
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/) || [];
 
     const totalSeconds =
       (parseInt(match[1] || 0) * 3600) +
