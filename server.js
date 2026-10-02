@@ -553,9 +553,73 @@ async function fetchYouTubePlaylists() {
     }
   );
 
-  youtubeCache.playlists = playlistRes.data.items;
+  const playlists = playlistRes.data.items;
+
+  // Fetch each playlist's videos (in playlist order) so the frontend can show
+  // a YouTube-style "up next" list without calling the YouTube API itself.
+  const playlistItems = {};
+  for (const playlist of playlists) {
+    try {
+      playlistItems[playlist.id] = await fetchPlaylistVideos(playlist.id);
+    } catch (error) {
+      console.error(`Error fetching playlist ${playlist.id}:`, error.message);
+      playlistItems[playlist.id] = youtubeCache.playlistItems?.[playlist.id] || [];
+    }
+  }
+
+  youtubeCache.playlists = playlists;
+  youtubeCache.playlistItems = playlistItems;
   return youtubeCache.playlists;
 }
+
+async function fetchPlaylistVideos(playlistId) {
+  const videoIds = [];
+  let nextPageToken = "";
+
+  do {
+    const itemsRes = await axios.get(
+      "https://www.googleapis.com/youtube/v3/playlistItems",
+      {
+        params: {
+          key: YT_API_KEY,
+          playlistId,
+          part: "contentDetails",
+          maxResults: 50,
+          pageToken: nextPageToken,
+        },
+      }
+    );
+    videoIds.push(...itemsRes.data.items.map((item) => item.contentDetails.videoId));
+    nextPageToken = itemsRes.data.nextPageToken;
+  } while (nextPageToken);
+
+  // Look up details 50 at a time; private/deleted videos aren't returned and drop out.
+  const videosById = {};
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const videosRes = await axios.get(
+      "https://www.googleapis.com/youtube/v3/videos",
+      {
+        params: {
+          key: YT_API_KEY,
+          id: videoIds.slice(i, i + 50).join(","),
+          part: "snippet,statistics,contentDetails",
+        },
+      }
+    );
+    videosRes.data.items.forEach((video) => {
+      videosById[video.id] = video;
+    });
+  }
+
+  return videoIds.map((id) => videosById[id]).filter(Boolean);
+}
+
+app.get("/api/youtube/playlists/:id/videos", async (req, res) => {
+  return res.json({
+    success: true,
+    data: youtubeCache.playlistItems?.[req.params.id] || [],
+  });
+});
 app.get("/api/youtube/playlists", async (req, res) => {
   console.log("Playlists count:", youtubeCache.playlists?.length);
   return res.json({
@@ -613,7 +677,9 @@ async function fetchYouTubeData_l() {
   let videos = [];
 let nextPageToken = "";
 // const UPLOADS_PLAYLIST_ID = "UU9pRPRlo6wIOakEOi_2RWwA"; // old dummy channel
-const UPLOADS_PLAYLIST_ID = "UU7IcJI8PUf5Z3zKxnZvTBog"; // same as video lessons channel
+// A channel's uploads playlist is its channel ID with "UC" swapped for "UU".
+// (The old value, UU7IcJI8PUf5Z3zKxnZvTBog, was The School of Life's uploads.)
+const UPLOADS_PLAYLIST_ID = "UU" + CHANNEL_ID_l.slice(2);
 
 while (true) {
   const playlistRes = await axios.get(
@@ -829,17 +895,23 @@ app.get("/api/youtube-search", async (req, res) => {
 const AUTO_REFRESH_INTERVAL = 30 * 60 * 1000; 
 
 async function refreshYouTubeCache() {
-  try {
-    console.log("Auto-refreshing YouTube caches...");
+  console.log("Auto-refreshing YouTube caches...");
 
-    await fetchYouTubeData();   
-    await fetchYouTubeData_l(); 
-    await fetchYouTubePlaylists(); 
-
-    console.log("YouTube caches refreshed successfully");
-  } catch (error) {
-    console.error("Error refreshing YouTube cache:", error.message);
+  // Refresh each cache independently so one failure doesn't leave the others empty.
+  const tasks = [
+    ["video lessons", fetchYouTubeData],
+    ["life lessons", fetchYouTubeData_l],
+    ["playlists", fetchYouTubePlaylists],
+  ];
+  for (const [name, fetchFn] of tasks) {
+    try {
+      await fetchFn();
+    } catch (error) {
+      console.error(`Error refreshing ${name} YouTube cache:`, error.message);
+    }
   }
+
+  console.log("YouTube cache refresh finished");
 }
 
 // Run every 30 minutes
