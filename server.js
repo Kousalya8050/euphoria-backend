@@ -759,17 +759,29 @@ app.get("/api/youtube_l/:type", async (req, res) => {
 
 
 
+// Merge all YouTube caches, keeping one entry per video ID (the same video can live in more than one cache)
+function getAllCachedVideos() {
+  const seen = new Set();
+  return [
+    ...(youtubeCache.lessons || []),
+    ...(youtubeCache.shorts || []),
+    ...(youtubeCache_l.lessons || []),
+    ...(youtubeCache_l.shorts || []),
+  ].filter((v) => {
+    const videoId = v.id?.videoId || v.id;
+    if (!videoId) return true;
+    if (seen.has(videoId)) return false;
+    seen.add(videoId);
+    return true;
+  });
+}
+
 app.get("/api/search-all", async (req, res) => {
   const query = (req.query.q || "").toLowerCase();
   if (!query) return res.json({ success: true, videos: [], blogs: [] });
 
   // 1. Filter Videos from Cache
-  const allVideos = [
-    ...(youtubeCache.lessons || []),
-    ...(youtubeCache.shorts || []),
-    ...(youtubeCache_l.lessons || []),
-    ...(youtubeCache_l.shorts || []),
-  ];
+  const allVideos = getAllCachedVideos();
   const filteredVideos = allVideos.filter((v) => {
     const title = (v.snippet?.title || "").toLowerCase();
     // Safely extract the video ID
@@ -808,12 +820,7 @@ app.get("/api/youtube-search", async (req, res) => {
   }
 
   // Just read from cache — DO NOT refresh here
-  const allVideos = [
-    ...(youtubeCache.lessons || []),
-    ...(youtubeCache.shorts || []),
-    ...(youtubeCache_l.lessons || []),
-    ...(youtubeCache_l.shorts || []),
-  ];
+  const allVideos = getAllCachedVideos();
 
   const filtered = allVideos.filter((v) =>
     v.snippet.title.toLowerCase().includes(query)
